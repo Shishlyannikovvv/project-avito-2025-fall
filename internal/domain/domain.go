@@ -3,7 +3,7 @@ package domain
 import (
 	"time"
 
-	"github.com/lib/pq" // Для массивов Postgres
+	"github.com/lib/pq"
 )
 
 type User struct {
@@ -24,6 +24,6 @@ type PullRequest struct {
 	Title       string        `json:"title"`
 	AuthorID    int           `json:"author_id"`
 	Status      string        `json:"status"` // OPEN, MERGED
-	ReviewerIDs pq.Int64Array `gorm:"type:integer[]" json:"reviewer_ids"`
+	ReviewerIDs pq.Int64Array `gorm:"type:bigint[]" json:"reviewer_ids"`
 	CreatedAt   time.Time     `json:"created_at"`
 }

@@ -13,14 +13,20 @@ func New(db *gorm.DB) *Store {
 	return &Store{db: db}
 }
 
-// Методы для Team
+// --- Team ---
 func (s *Store) CreateTeam(team *domain.Team) error {
 	return s.db.Create(team).Error
 }
 
-// Методы для User
+// --- User ---
 func (s *Store) CreateUser(user *domain.User) error {
 	return s.db.Create(user).Error
+}
+
+func (s *Store) GetUser(id int) (*domain.User, error) {
+	var user domain.User
+	err := s.db.First(&user, id).Error
+	return &user, err
 }
 
 func (s *Store) GetTeamMembers(teamID int) ([]domain.User, error) {
@@ -29,7 +35,7 @@ func (s *Store) GetTeamMembers(teamID int) ([]domain.User, error) {
 	return users, err
 }
 
-// Методы для PR
+// --- Pull Request ---
 func (s *Store) CreatePR(pr *domain.PullRequest) error {
 	return s.db.Create(pr).Error
 }

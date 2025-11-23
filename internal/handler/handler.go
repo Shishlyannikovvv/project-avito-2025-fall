@@ -16,6 +16,12 @@ func New(svc *service.Service) *Handler {
 	return &Handler{svc: svc}
 }
 
+// Вспомогательная структура для парсинга JSON при создании PR
+type CreatePRRequest struct {
+	Title    string `json:"title" binding:"required"`
+	AuthorID int    `json:"author_id" binding:"required"`
+}
+
 func (h *Handler) CreateTeam(c *gin.Context) {
 	var req domain.Team
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -44,12 +50,27 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, user)
 }
 
-// RegisterRoutes регистрирует пути
+func (h *Handler) CreatePR(c *gin.Context) {
+	var req CreatePRRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+	pr, err := h.svc.CreatePR(req.Title, req.AuthorID)
+	if err != nil {
+		// В реальном проекте тут нужно различать ошибки (404 vs 500)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, pr)
+}
+
+// RegisterRoutes регистрирует пути в Gin
 func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	api := r.Group("/api")
 	{
 		api.POST("/teams", h.CreateTeam)
 		api.POST("/users", h.CreateUser)
-		// Сюда добавим PR роуты позже
+		api.POST("/pull-requests", h.CreatePR)
 	}
 }

@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+	"math/rand"
 	"time"
 
 	"github.com/Shishlyannikovvv/project-avito-2025-fall/internal/domain"
@@ -26,20 +28,49 @@ func (s *Service) CreateUser(name string, teamID int) (*domain.User, error) {
 	return user, s.store.CreateUser(user)
 }
 
+// CreatePR - основная логика задания
 func (s *Service) CreatePR(title string, authorID int) (*domain.PullRequest, error) {
-	// 1. Находим команду автора (в реальном коде нужен метод GetUser)
-	// Для MVP упростим: считаем, что teamID передается или мы его знаем.
-	// Тут нужно дописать получение User, чтобы узнать его TeamID.
+	// 1. Находим автора, чтобы узнать его команду
+	author, err := s.store.GetUser(authorID)
+	if err != nil {
+		return nil, errors.New("автор не найден")
+	}
 
-	// Заглушка:
-	reviewers := pq.Int64Array{}
+	// 2. Получаем всех коллег
+	teamMembers, err := s.store.GetTeamMembers(author.TeamID)
+	if err != nil {
+		return nil, err
+	}
 
+	// 3. Фильтруем: исключаем автора и неактивных
+	var candidates []int64
+	for _, user := range teamMembers {
+		if user.IsActive && user.ID != author.ID {
+			candidates = append(candidates, int64(user.ID))
+		}
+	}
+
+	// 4. Выбираем случайных (макс 2)
+	// Создаем локальный рандом, чтобы не зависеть от глобального состояния
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	r.Shuffle(len(candidates), func(i, j int) {
+		candidates[i], candidates[j] = candidates[j], candidates[i]
+	})
+
+	limit := 2
+	if len(candidates) < limit {
+		limit = len(candidates)
+	}
+	reviewers := candidates[:limit]
+
+	// 5. Создаем PR
 	pr := &domain.PullRequest{
 		Title:       title,
 		AuthorID:    authorID,
 		Status:      "OPEN",
-		ReviewerIDs: reviewers,
+		ReviewerIDs: pq.Int64Array(reviewers),
 		CreatedAt:   time.Now(),
 	}
+
 	return pr, s.store.CreatePR(pr)
 }
