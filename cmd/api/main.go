@@ -1,67 +1,43 @@
 package main
 
 import (
-	"context"
 	"log"
-	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/Shishlyannikovvv/project-avito-2025-fall/internal/handler"
 	"github.com/Shishlyannikovvv/project-avito-2025-fall/internal/service"
 	"github.com/Shishlyannikovvv/project-avito-2025-fall/internal/store"
-	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/pressly/goose/v3"
+	"github.com/gin-gonic/gin"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 func main() {
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		dbURL = "postgres://postgres:postgres@localhost:5432/avito?sslmode=disable"
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		// Дефолт для локального запуска без докера (если вдруг пригодится)
+		dsn = "host=localhost user=user password=password dbname=pr_reviewer port=5432 sslmode=disable"
 	}
 
-	pool, err := pgxpool.New(context.Background(), dbURL)
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("failed to connect to db: %v", err)
-	}
-	defer pool.Close()
-
-	// Автоматические миграции
-	if err := goose.SetDialect("postgres"); err != nil {
-		log.Fatalf("goose dialect: %v", err)
-	}
-	if err := goose.Up(pool.Conn(), "migrations"); err != nil {
-		log.Fatalf("migrations failed: %v", err)
+		log.Fatalf("Не удалось подключиться к БД: %v", err)
 	}
 
-	store := store.NewStore(pool)
-	service := service.NewService(store)
-	handler := handler.NewHandler(service)
+	// Автомиграция (GORM умеет сам создавать таблицы, это проще чем goose для начала)
+	// Но у нас есть папка migrations, так что можно оставить как есть.
+	// Для надежности GORM может проверить схемы:
+	// db.AutoMigrate(&domain.Team{}, &domain.User{}, &domain.PullRequest{})
 
-	r := chi.NewRouter()
-	handler.SetupRoutes(r)
+	st := store.New(db)
+	svc := service.New(st)
+	h := handler.New(svc)
 
-	srv := &http.Server{
-		Addr:    ":8080",
-		Handler: r,
-	}
+	r := gin.Default()
+	h.RegisterRoutes(r)
 
-	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("server error: %v", err)
-		}
-	}()
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("shutdown error: %v", err)
+	log.Println("Сервис запускается на порту 8080...")
+	if err := r.Run(":8080"); err != nil {
+		log.Fatal(err)
 	}
 }

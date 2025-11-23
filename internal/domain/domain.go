@@ -1,51 +1,29 @@
 package domain
 
-import "time"
+import (
+	"time"
 
-// Team представляет команду
-type Team struct {
-	ID   int
-	Name string
-}
+	"github.com/lib/pq" // Для массивов Postgres
+)
 
-// User представляет пользователя
 type User struct {
-	ID       int
-	Username string
-	TeamID   int
-	IsActive bool
-}
-
-// PR представляет Pull Request
-type PR struct {
-	ID          int
-	Title       string
-	AuthorID    int
-	Status      string
-	Reviewer1ID *int
-	Reviewer2ID *int
-	CreatedAt   time.Time
-	MergedAt    *time.Time
-}
-
-// CreateTeamRequest запрос на создание команды
-type CreateTeamRequest struct {
-	Name string `json:"name"`
-}
-
-// CreateUserRequest запрос на создание пользователя
-type CreateUserRequest struct {
-	Username string `json:"username"`
+	ID       int    `gorm:"primaryKey" json:"id"`
+	Name     string `gorm:"unique;not null" json:"name"`
 	TeamID   int    `json:"team_id"`
+	IsActive bool   `gorm:"default:true" json:"is_active"`
 }
 
-// CreatePRRequest запрос на создание PR
-type CreatePRRequest struct {
-	Title    string `json:"title"`
-	AuthorID int    `json:"author_id"`
+type Team struct {
+	ID    int    `gorm:"primaryKey" json:"id"`
+	Name  string `gorm:"unique;not null" json:"name"`
+	Users []User `gorm:"foreignKey:TeamID" json:"users,omitempty"`
 }
 
-// ReassignRequest запрос на переназначение
-type ReassignRequest struct {
-	ReviewerID int `json:"reviewer_id"`
+type PullRequest struct {
+	ID          int           `gorm:"primaryKey" json:"id"`
+	Title       string        `json:"title"`
+	AuthorID    int           `json:"author_id"`
+	Status      string        `json:"status"` // OPEN, MERGED
+	ReviewerIDs pq.Int64Array `gorm:"type:integer[]" json:"reviewer_ids"`
+	CreatedAt   time.Time     `json:"created_at"`
 }
