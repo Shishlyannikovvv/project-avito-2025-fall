@@ -1,23 +1,37 @@
-services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: avito
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: pg_isready -U postgres
-      interval: 5s
-      retries: 5
+version: '3.9'
 
-  api:
-    build: .
+services:
+  app:
+    build:
+      context: ..            # Выходим на уровень выше (в корень проекта)
+      dockerfile: docker/Dockerfile
+    container_name: reviewer_api
     ports:
       - "8080:8080"
+    environment:
+      # Строка подключения к БД внутри сети докера
+      DATABASE_URL: "postgres://user:password@db:5432/pr_reviewer?sslmode=disable"
     depends_on:
       db:
-        condition: service_healthy
+        condition: service_healthy # Ждем, пока БД будет полностью готова
+    restart: always
+
+  db:
+    image: postgres:16-alpine
+    container_name: reviewer_db
     environment:
-      DATABASE_URL: postgres://postgres:postgres@db:5432/avito?sslmode=disable
+      POSTGRES_DB: pr_reviewer
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432" # Прокидываем порт наружу, чтобы ты мог подключиться через DBeaver/PgAdmin
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d pr_reviewer"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
