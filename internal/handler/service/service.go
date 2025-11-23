@@ -50,8 +50,7 @@ func (s *Service) CreatePR(title string, authorID int) (*domain.PullRequest, err
 		}
 	}
 
-	// 4. Выбираем случайных (макс 2)
-	// Создаем локальный рандом, чтобы не зависеть от глобального состояния
+	// 4. Выбираем случайных (максимум 2)
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	r.Shuffle(len(candidates), func(i, j int) {
 		candidates[i], candidates[j] = candidates[j], candidates[i]

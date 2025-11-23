@@ -37,7 +37,7 @@ func main() {
 
 	// 4. Инициализация слоев
 	st := store.New(db)
-	svc := service.New(st)
+	svc := service.New(st) // ЯВНОЕ ИСПОЛЬЗОВАНИЕ internal/service
 	h := handler.New(svc)
 
 	// 5. Роутер
